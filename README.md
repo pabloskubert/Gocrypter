@@ -22,3 +22,11 @@ Crypter em golang (POC)
 A efetividade do crypter é consistente até que a carga maliciosa seja gravado no disco rígido, somente 
 esta técnica sozinha não é capaz de ser efetiva contra EDR's e AV's inteligentes, é necessário combiná-la 
 com outras de injenção, como `PROCESS HOLLOWING` ou qualquer outra. 
+
+## Resultado
+
+#### Payload do Quasar RAT puro
+![Screenshot](detection.png)
+
+#### Payload do Quasar RAT encriptado
+![Screenshot](detection_after.png)
