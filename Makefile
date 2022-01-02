@@ -22,3 +22,5 @@ build:
 
 test:
 	./gocrypter.elf gocrypter.exe
+
+all: clean build

