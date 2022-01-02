@@ -1,6 +1,10 @@
 # Gocrypter
 Crypter em golang (POC)
 
+## Uso
+
+./gocrypter <executável> 
+
 ## Estágios do crypter
 
 1. Comprimi o arquivo malicioso usando a ZLIB
